@@ -9,7 +9,7 @@ let active;
 const player = get('player');
 function clipFor(item) {
   const clip = window.clips[item.id];
-  return clip && /^clips\/[A-Za-z0-9_-]+\.mp4$/.test(clip.file) ? clip : null;
+  return clip && /^[A-Za-z0-9_-]{11}$/.test(clip.id) && clip.ranges.length ? clip : null;
 }
 function node(tag, value, cls) {
   const element = document.createElement(tag);
@@ -41,7 +41,7 @@ function render() {
     const points = rule(item.category);
     if (points) card.append(node('p',points,'rule'));
     if (clip) card.append(button);
-    else card.append(node('p','Corte pendente','rule'));
+    else card.append(node('p',item.category === 'Pontuação' ? 'Consulte o regulamento no rodapé.' : 'Corte pendente','rule'));
     return card;
   }));
 }
@@ -50,16 +50,26 @@ function open(item) {
   if (!clip) return;
   active = item;
   get('title').textContent = item.name;
-  const video = document.createElement('video');
-  video.controls = true;
-  video.playsInline = true;
-  video.preload = 'metadata';
-  video.src = clip.file;
-  video.setAttribute('aria-label', item.name);
-  get('frame').replaceChildren(video);
-  get('clip').textContent = clip.credit || '';
+  const host = get('frame');
+  const controls = get('segments');
+  controls.replaceChildren();
+  function play([start, end]) {
+    const frame = document.createElement('iframe');
+    const params = new URLSearchParams({autoplay: '1', playsinline: '1', start: Math.floor(start), end: Math.ceil(end)});
+    frame.src = 'https://www.youtube-nocookie.com/embed/' + clip.id + '?' + params;
+    frame.title = item.name;
+    frame.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
+    frame.allowFullscreen = true;
+    host.replaceChildren(frame);
+  }
+  clip.ranges.forEach((range, index) => {
+    const button = node('button', clip.ranges.length > 1 ? 'Trecho ' + (index + 1) : 'Repetir trecho');
+    button.onclick = () => play(range);
+    controls.append(button);
+  });
+  get('clip').textContent = clip.id === item.id ? 'Trecho da demonstração original' : 'Trecho de demonstração alternativa';
   player.showModal();
-  video.play().catch(() => {});
+  play(clip.ranges[0]);
 }
 player.addEventListener('close', () => {
   get('frame').replaceChildren();
