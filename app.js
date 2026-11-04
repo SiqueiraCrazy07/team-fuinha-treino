@@ -4,12 +4,13 @@ const normalize = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g,'')
 const entries = window.catalog.flatMap((group, i) => group.items.map((item,j) => ({
   ...item, key: [group.name, item.name, item.id, j < group.base ? 'Bruno' : 'Rafael'].join('|'), category: group.name, athlete: j < group.base ? 'Bruno' : 'Rafael'
 })));
-let marks = {};
-try { marks = JSON.parse(localStorage.getItem('fuinha-trechos-v1')) || {}; } catch {}
 let athlete = 'Bruno';
 let active;
 const player = get('player');
-const valid = cut => cut && Number.isInteger(cut.start) && Number.isInteger(cut.end) && cut.start >= 0 && cut.end > cut.start;
+function clipFor(item) {
+  const clip = window.clips[item.id];
+  return clip && /^clips\/[A-Za-z0-9_-]+\.mp4$/.test(clip.file) ? clip : null;
+}
 function node(tag, value, cls) {
   const element = document.createElement(tag);
   element.textContent = value;
@@ -23,77 +24,43 @@ function rule(category) {
   if (name === 'saida de guarda fechada') return 'IBJJF · Abrir a guarda por si só não pontua. A passagem consolidada vale 3 pontos.';
   return '';
 }
-function cutFor(item) { return valid(marks[item.key]) ? marks[item.key] : window.chapters[item.id]; }
 function render() {
   const query = normalize(get('query').value.trim());
   const category = get('category').value;
   const shown = entries.filter(item => item.athlete === athlete && (!category || item.category === category) &&
     normalize(item.name + ' ' + item.category).includes(query) &&
-    (!get('quick').checked || valid(cutFor(item)) || window.shortVideos[item.id]));
+    (!get('quick').checked || clipFor(item)));
   get('count').textContent = shown.length ? shown.length + ' itens de ' + athlete : 'Nenhum golpe encontrado.';
   get('cards').replaceChildren(...shown.map(item => {
     const card = node('article','','card');
-    const button = node('button',valid(cutFor(item)) ? '▶ Ver trecho' : window.shortVideos[item.id] ? '▶ Ver vídeo · ' + window.shortVideos[item.id] + ' s' : '▶ Ver demonstração','play');
+    const clip = clipFor(item);
+    const button = node('button', '▶ Ver golpe', 'play');
     button.dataset.entry = item.key;
     button.onclick = () => open(item);
     card.append(node('span',item.category,'badge'),node('h2',item.name));
     const points = rule(item.category);
     if (points) card.append(node('p',points,'rule'));
-    if (item.id === 'MLvOyCxmH8A') {
-      card.append(node('p','Original restrito a membros do canal.','rule'));
-      const alternative = node('a','Referência complementar de foice e tripé ↗','rule');
-      alternative.href = 'https://www.youtube.com/watch?v=d4lj6PyVf94';
-      alternative.target = '_blank';
-      alternative.rel = 'noopener';
-      card.append(alternative);
-    }
-    card.append(button);
+    if (clip) card.append(button);
+    else card.append(node('p','Corte pendente','rule'));
     return card;
   }));
 }
-function playback() {
-  const cut = cutFor(active);
-  const marked = valid(cut);
-  const params = new URLSearchParams({autoplay:'1',playsinline:'1',rel:'0'});
-  if (marked) { params.set('start',cut.start); params.set('end',cut.end); }
-  const frame = document.createElement('iframe');
-  frame.title = active.title || active.name;
-  frame.src = 'https://www.youtube-nocookie.com/embed/' + active.id + '?' + params;
-  frame.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
-  frame.allowFullscreen = true;
-  get('frame').replaceChildren(frame);
-  get('clip').textContent = marked ? (cut.label ? 'Capítulo do criador · ' + cut.label + ' · ' : 'Marcação deste aparelho · ') + cut.start + '–' + cut.end + ' s' : 'Vídeo original · trecho ainda sem marcação';
-  get('original').href = 'https://www.youtube.com/watch?v=' + active.id + (marked ? '&t=' + cut.start + 's' : '');
-}
 function open(item) {
+  const clip = clipFor(item);
+  if (!clip) return;
   active = item;
   get('title').textContent = item.name;
-  get('notice').textContent = '';
-  get('start').value = marks[item.key]?.start ?? '';
-  get('end').value = marks[item.key]?.end ?? '';
+  const video = document.createElement('video');
+  video.controls = true;
+  video.playsInline = true;
+  video.preload = 'metadata';
+  video.src = clip.file;
+  video.setAttribute('aria-label', item.name);
+  get('frame').replaceChildren(video);
+  get('clip').textContent = clip.credit || '';
   player.showModal();
-  playback();
+  video.play().catch(() => {});
 }
-function save() {
-  try { localStorage.setItem('fuinha-trechos-v1',JSON.stringify(marks)); return true; }
-  catch { return false; }
-}
-get('marks').onsubmit = event => {
-  event.preventDefault();
-  const cut = {start:get('start').valueAsNumber,end:get('end').valueAsNumber};
-  if (!valid(cut)) { get('notice').textContent = 'O fim deve vir depois do início.'; return; }
-  marks[active.key] = cut;
-  get('notice').textContent = save() ? 'Marcação salva.' : 'Marcação disponível nesta sessão.';
-  playback();
-};
-get('clear').onclick = () => {
-  delete marks[active.key];
-  save();
-  get('start').value = get('end').value = '';
-  get('notice').textContent = 'Marcação removida.';
-  playback();
-};
-get('replay').onclick = playback;
 player.addEventListener('close', () => {
   get('frame').replaceChildren();
   render();
