@@ -6,6 +6,7 @@ const entries = window.catalog.flatMap((group, i) => group.items.map((item,j) =>
 })));
 let athlete = 'Bruno';
 let active;
+const expanded = new Set();
 const player = get('player');
 function clipFor(item) {
   const clip = window.clips[item.id];
@@ -31,19 +32,39 @@ function render() {
     normalize(item.name + ' ' + item.category).includes(query) &&
     (!get('quick').checked || clipFor(item)));
   get('count').textContent = shown.length ? shown.length + ' itens de ' + athlete : 'Nenhum golpe encontrado.';
-  get('cards').replaceChildren(...shown.map(item => {
-    const card = node('article','','card');
-    const clip = clipFor(item);
-    const button = node('button', '▶ Ver golpe', 'play');
-    button.dataset.entry = item.key;
-    button.onclick = () => open(item);
-    card.append(node('span',item.category,'badge'),node('h2',item.name));
-    const points = rule(item.category);
-    if (points) card.append(node('p',points,'rule'));
-    if (clip) card.append(button);
-    else card.append(node('p',item.category === 'Pontuação' ? 'Consulte o regulamento no rodapé.' : 'Corte pendente','rule'));
-    return card;
+  const groups = new Map();
+  for (const item of shown) {
+    if (!groups.has(item.category)) groups.set(item.category, []);
+    groups.get(item.category).push(item);
+  }
+  get('cards').replaceChildren(...Array.from(groups, ([name, items]) => {
+    const section = node('details', '', 'move-group');
+    const groupKey = athlete + '|' + name;
+    section.open = Boolean(query || category || expanded.has(groupKey));
+    const summary = node('summary', name);
+    summary.append(node('span', String(items.length), 'group-count'));
+    summary.addEventListener('click', () => {
+      if (section.open) expanded.delete(groupKey);
+      else expanded.add(groupKey);
+    });
+    const grid = node('div', '', 'grid');
+    grid.append(...items.map(renderCard));
+    section.append(summary, grid);
+    return section;
   }));
+}
+function renderCard(item) {
+  const card = node('article','','card');
+  const clip = clipFor(item);
+  const button = node('button', '▶ Ver golpe', 'play');
+  button.dataset.entry = item.key;
+  button.onclick = () => open(item);
+  card.append(node('h2',item.name));
+  const points = rule(item.category);
+  if (points) card.append(node('p',points,'rule'));
+  if (clip) card.append(button);
+  else card.append(node('p',item.category === 'Pontuação' ? 'Consulte o regulamento no rodapé.' : 'Corte pendente','rule'));
+  return card;
 }
 function open(item) {
   const clip = clipFor(item);
@@ -54,7 +75,7 @@ function open(item) {
   video.controls = true;
   video.playsInline = true;
   video.preload = 'metadata';
-  video.src = clip.file;
+  video.src = clip.revision ? clip.file + '?v=' + encodeURIComponent(clip.revision) : clip.file;
   video.setAttribute('aria-label', item.name);
   get('frame').replaceChildren(video);
   get('clip').textContent = (clip.id === item.id ? 'Fonte original' : 'Demonstração alternativa') + ' · ' + clip.id;
@@ -63,7 +84,6 @@ function open(item) {
 }
 player.addEventListener('close', () => {
   get('frame').replaceChildren();
-  render();
   const restored = [...get('cards').querySelectorAll('button')].find(button => button.dataset.entry === active.key);
   (restored || get('query')).focus();
 });
