@@ -1,9 +1,7 @@
-# Team Fuinha · Faixa azul no tatame
+# Faixa azul no tatame
 
-Abra o site no celular, selecione Bruno ou Rafael e busque a técnica. O filtro rápido mostra capítulos marcados e vídeos com até um minuto. O player usa o vídeo original do YouTube. Marcas pessoais são guardadas neste navegador.
+Selecione Bruno ou Rafael e busque o golpe. O filtro rápido mostra somente cortes prontos. Cada corte é um MP4 reproduzido no site.
 
-Catálogo e divisão de técnicas: [roteiro original de Bruno Ribeiro](https://brunorba08.github.io/team-fuinha-faixa-azul/).
-Pontuação esportiva: [IBJJF, regras e vídeos](https://ibjjf.com/books-videos).
-Trechos em chapters.js vêm dos capítulos publicados pelos criadores. Conferência visual e disponibilidade de incorporação são verificações separadas.
+Para adicionar um corte, assista à gravação autorizada, marque o início e o fim da demonstração e exporte apenas esse trecho em MP4 H.264, com início rápido para reprodução na web. Revise a execução inteira e registre o arquivo e o crédito em clips.js, usando o ID do vídeo correspondente no catálogo. Use a skill .agents/skills/fuinha-validar-treino.
 
-A skill de revisão está em .agents/skills/fuinha-validar-treino.
+Catálogo baseado no roteiro de Bruno Ribeiro: https://brunorba08.github.io/team-fuinha-faixa-azul/
