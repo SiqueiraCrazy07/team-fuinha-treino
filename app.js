@@ -2,7 +2,7 @@
 const get = id => document.getElementById(id);
 const normalize = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 const entries = window.catalog.flatMap((group, i) => group.items.map((item,j) => ({
-  ...item, key: i + '-' + j, category: group.name, athlete: j < group.base ? 'Bruno' : 'Rafael'
+  ...item, key: [group.name, item.name, item.id, j < group.base ? 'Bruno' : 'Rafael'].join('|'), category: group.name, athlete: j < group.base ? 'Bruno' : 'Rafael'
 })));
 let marks = {};
 try { marks = JSON.parse(localStorage.getItem('fuinha-trechos-v1')) || {}; } catch {}
@@ -34,11 +34,19 @@ function render() {
   get('cards').replaceChildren(...shown.map(item => {
     const card = node('article','','card');
     const button = node('button',valid(cutFor(item)) ? '▶ Ver trecho' : window.shortVideos[item.id] ? '▶ Ver vídeo · ' + window.shortVideos[item.id] + ' s' : '▶ Ver demonstração','play');
+    button.dataset.entry = item.key;
     button.onclick = () => open(item);
     card.append(node('span',item.category,'badge'),node('h2',item.name));
     const points = rule(item.category);
     if (points) card.append(node('p',points,'rule'));
-    if (item.id === 'MLvOyCxmH8A') card.append(node('p','Original restrito a membros do canal.','rule'));
+    if (item.id === 'MLvOyCxmH8A') {
+      card.append(node('p','Original restrito a membros do canal.','rule'));
+      const alternative = node('a','Referência complementar de foice e tripé ↗','rule');
+      alternative.href = 'https://www.youtube.com/watch?v=d4lj6PyVf94';
+      alternative.target = '_blank';
+      alternative.rel = 'noopener';
+      card.append(alternative);
+    }
     card.append(button);
     return card;
   }));
@@ -86,7 +94,12 @@ get('clear').onclick = () => {
   playback();
 };
 get('replay').onclick = playback;
-player.addEventListener('close', () => { get('frame').replaceChildren(); render(); });
+player.addEventListener('close', () => {
+  get('frame').replaceChildren();
+  render();
+  const restored = [...get('cards').querySelectorAll('button')].find(button => button.dataset.entry === active.key);
+  (restored || get('query')).focus();
+});
 for (const category of window.catalog) get('category').append(new Option(category.name,category.name));
 document.querySelectorAll('[data-athlete]').forEach(button => {
   button.onclick = () => {
