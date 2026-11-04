@@ -50,26 +50,16 @@ function open(item) {
   if (!clip) return;
   active = item;
   get('title').textContent = item.name;
-  const host = get('frame');
-  const controls = get('segments');
-  controls.replaceChildren();
-  function play([start, end]) {
-    const frame = document.createElement('iframe');
-    const params = new URLSearchParams({autoplay: '1', playsinline: '1', start: Math.floor(start), end: Math.ceil(end)});
-    frame.src = 'https://www.youtube-nocookie.com/embed/' + clip.id + '?' + params;
-    frame.title = item.name;
-    frame.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
-    frame.allowFullscreen = true;
-    host.replaceChildren(frame);
-  }
-  clip.ranges.forEach((range, index) => {
-    const button = node('button', clip.ranges.length > 1 ? 'Trecho ' + (index + 1) : 'Repetir trecho');
-    button.onclick = () => play(range);
-    controls.append(button);
-  });
-  get('clip').textContent = clip.id === item.id ? 'Trecho da demonstração original' : 'Trecho de demonstração alternativa';
+  const video = document.createElement('video');
+  video.controls = true;
+  video.playsInline = true;
+  video.preload = 'metadata';
+  video.src = clip.file;
+  video.setAttribute('aria-label', item.name);
+  get('frame').replaceChildren(video);
+  get('clip').textContent = (clip.id === item.id ? 'Fonte original' : 'Demonstração alternativa') + ' · ' + clip.id;
   player.showModal();
-  play(clip.ranges[0]);
+  video.play().catch(() => {});
 }
 player.addEventListener('close', () => {
   get('frame').replaceChildren();
